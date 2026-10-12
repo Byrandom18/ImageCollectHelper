@@ -15,6 +15,7 @@ class Category:
     pexels_query: str
     unsplash_query: str
     pixabay_query: str
+    pixabay_queries: tuple[str, ...] = ()
 
 
 @dataclass

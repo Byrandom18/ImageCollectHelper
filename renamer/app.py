@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import os
+import threading
 import tkinter.filedialog as filedialog
 from pathlib import Path
+from tkinter import messagebox
 
 import customtkinter as ctk
 
 from collector.paths import DESTINATIONS, destination_path
 from collector.storage import load_settings, save_settings
-from renamer.logic import apply_plan, build_plan
+from renamer.logic import RenameItem, apply_plan, build_difficulty_plan, build_plan
 
 ACCENT = "#6ea8fe"
 
@@ -35,6 +37,7 @@ class RenamerApp(ctk.CTk):
         self.minsize(640, 520)
         self.configure(fg_color="#16181d")
         self._settings = load_settings()
+        self._busy = False
         self._build()
         self._load()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -45,7 +48,7 @@ class RenamerApp(ctk.CTk):
         ctk.CTkLabel(header, text="Сплошная нумерация", font=ctk.CTkFont(size=24, weight="bold")).pack(anchor="w")
         ctk.CTkLabel(
             header,
-            text="01, 02, 04.webp → 01, 02, 03.webp. Файлы без числового имени не трогает.",
+            text="«Переименовать» закрывает пропуски: 01, 02, 04 → 01, 02, 03. «По сложности» нумерует с простых кадров к сложным.",
             text_color="#9aa3b2",
             font=ctk.CTkFont(size=13),
         ).pack(anchor="w", pady=(2, 0))
@@ -68,8 +71,10 @@ class RenamerApp(ctk.CTk):
         self.pad_var = ctk.StringVar(value="2")
         self._num_field(nums, "Номер с", self.start_var, 0)
         self._num_field(nums, "Цифр в имени", self.pad_var, 1)
+        self.limit_var = ctk.StringVar(value="4")
+        self._num_field(nums, "Макс. похожих", self.limit_var, 2)
         self.images_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(nums, text="Только картинки", variable=self.images_var).grid(row=0, column=2, padx=16, sticky="s")
+        ctk.CTkCheckBox(nums, text="Только картинки", variable=self.images_var).grid(row=0, column=3, padx=16, sticky="s")
 
         btns = ctk.CTkFrame(body, fg_color="transparent")
         btns.pack(fill="x", padx=14, pady=(4, 8))
@@ -83,7 +88,12 @@ class RenamerApp(ctk.CTk):
             font=ctk.CTkFont(weight="bold"),
             command=self._rename,
         ).pack(side="left", padx=8)
-        ctk.CTkButton(btns, text="Открыть папку", width=130, fg_color="#3a3f4b", command=self._open_folder).pack(side="left")
+        ctk.CTkButton(btns, text="По сложности", width=150, fg_color="#3a3f4b", command=self._rename_by_difficulty).pack(
+            side="left"
+        )
+        ctk.CTkButton(btns, text="Открыть папку", width=130, fg_color="#3a3f4b", command=self._open_folder).pack(
+            side="left", padx=8
+        )
 
         self.status = ctk.CTkLabel(body, text="Выберите папку и нажмите «Показать план»", text_color="#c5cad6", anchor="w")
         self.status.pack(fill="x", padx=16, pady=(0, 6))
@@ -173,6 +183,67 @@ class RenamerApp(ctk.CTk):
         self.status.configure(text=f"Готово: переименовано {len(changed)}")
         self._preview()
 
+    def _rename_by_difficulty(self) -> None:
+        if self._busy:
+            return
+        folder = Path(self.path_entry.get().strip())
+        if not folder.is_dir():
+            self.status.configure(text=f"Нет такой папки: {folder}")
+            return
+        self._busy = True
+        self.status.configure(text="Считаю сложность…")
+        self._write_log(["Считаю, какая сетка ещё различима…"])
+        start = self._int(self.start_var, 1, 1, 99999)
+        pad = self._int(self.pad_var, 2, 1, 6)
+        limit = self._int(self.limit_var, 4, 1, 200)
+
+        def work() -> None:
+            try:
+                plan, lines = build_difficulty_plan(
+                    folder,
+                    start=start,
+                    pad_width=pad,
+                    max_cluster=limit,
+                    on_progress=lambda done, total, name: self.after(
+                        0, lambda done=done, total=total, name=name: self.status.configure(text=f"Сложность {done}/{total}  {name}")
+                    ),
+                )
+            except Exception as exc:
+                self.after(0, lambda exc=exc: self._difficulty_failed(str(exc)))
+                return
+            self.after(0, lambda: self._difficulty_ready(plan, lines))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _difficulty_failed(self, message: str) -> None:
+        self._busy = False
+        self.status.configure(text=message)
+        self._write_log([message])
+
+    def _difficulty_ready(self, plan: list[RenameItem], lines: list[str]) -> None:
+        self._busy = False
+        if not plan:
+            self.status.configure(text="В папке нет изображений")
+            self._write_log(["В папке нет изображений."])
+            return
+        self.status.configure(text=f"План: {len(plan)} файлов, от простых к сложным")
+        self._write_log(lines)
+        agreed = messagebox.askyesno(
+            "По сложности",
+            "Переименовать файлы по этому порядку?\nПервые номера — более простые кадры, последние — более сложные.",
+            parent=self,
+        )
+        if not agreed:
+            return
+        try:
+            changed = apply_plan(plan)
+        except Exception as exc:
+            self.status.configure(text=str(exc))
+            self._write_log([str(exc)])
+            return
+        self.status.configure(text=f"Готово: по сложности переименовано {len(changed)}")
+        self._write_log(lines)
+
     def _load(self) -> None:
         dest_id = self._settings.get("dest_id", "campaign")
         title = next((t for i, t, _p in DESTINATIONS if i == dest_id), DESTINATIONS[0][1])
@@ -181,6 +252,7 @@ class RenamerApp(ctk.CTk):
         self.start_var.set(str(self._settings.get("rename_start", 1)))
         self.pad_var.set(str(self._settings.get("pad_width", 2)))
         self.images_var.set(self._settings.get("rename_images_only", True))
+        self.limit_var.set(str(self._settings.get("review_limit", 4)))
 
     def _on_close(self) -> None:
         data = dict(self._settings)
@@ -188,6 +260,7 @@ class RenamerApp(ctk.CTk):
         data["rename_start"] = self._int(self.start_var, 1, 1, 99999)
         data["pad_width"] = self._int(self.pad_var, 2, 1, 6)
         data["rename_images_only"] = self.images_var.get()
+        data["review_limit"] = self._int(self.limit_var, 4, 1, 200)
         try:
             save_settings(data)
         except Exception:

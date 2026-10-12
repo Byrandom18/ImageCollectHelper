@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+import re
 from collections.abc import Callable, Iterator
 from datetime import datetime
 from pathlib import Path
@@ -25,6 +26,7 @@ def collect_images(
     seen = load_seen_ids() if options.avoid_repeats else set()
     hashes: list[int] = []
     saved: list[SavedImage] = []
+    skipped_seen = 0
     session, proxy = make_session(options.use_local_proxy, options.proxy_url)
     next_number = max(1, options.start_number)
 
@@ -32,7 +34,7 @@ def collect_images(
         if not progress:
             return
         try:
-            progress(len(saved), options.count, message, path)
+            progress(len(saved), options.count, _hide_secrets(message), path)
         except Exception:
             try:
                 progress(len(saved), options.count, message.encode("ascii", "replace").decode("ascii"), path)
@@ -61,6 +63,9 @@ def collect_images(
         if len(saved) >= options.count:
             break
         if candidate.uid in seen:
+            skipped_seen += 1
+            if skipped_seen % 200 == 0:
+                log(f"Уже скачивались: {skipped_seen}, ищу новые…")
             continue
         if candidate.width and candidate.height:
             if options.landscape_only and candidate.width < candidate.height:
@@ -98,7 +103,13 @@ def collect_images(
         _write_credits(credits_file, saved)
         log(f"Авторы записаны в {credits_file}")
     log(f"Готово: {len(saved)} из {options.count}")
+    if len(saved) < options.count:
+        log("Новые картинки у выбранных источников закончились. Уже скачанные пропускаются.")
     return saved
+
+
+def _hide_secrets(message: str) -> str:
+    return re.sub(r"(key=)[^&\s]+", r"\1***", message, flags=re.I)
 
 
 def _iter_mixed_candidates(options, sources, session, log) -> Iterator[Candidate]:

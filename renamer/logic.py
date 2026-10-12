@@ -46,6 +46,52 @@ def list_numbered_files(folder: Path, images_only: bool = True) -> list[Path]:
     return [path for _index, path in files]
 
 
+def list_image_files(folder: Path) -> list[Path]:
+    if not folder.is_dir():
+        return []
+    files = [
+        path
+        for path in folder.iterdir()
+        if path.is_file()
+        and path.suffix.lower() in IMAGE_EXTS
+        and path.name.lower() not in SKIP_NAMES
+        and not path.name.startswith(".")
+        and path.suffix.lower() != ".meta"
+    ]
+    files.sort(key=lambda path: (numeric_index(path) is None, numeric_index(path) or 0, path.name.lower()))
+    return files
+
+
+def build_difficulty_plan(
+    folder: Path,
+    start: int = 1,
+    pad_width: int = 2,
+    max_cluster: int = 4,
+    on_progress=None,
+) -> tuple[list[RenameItem], list[str]]:
+    from reviewer.difficulty import recommend_file
+
+    start = max(1, int(start))
+    pad_width = max(1, int(pad_width))
+    files = list_image_files(folder)
+    ranked = []
+    for index, path in enumerate(files, start=1):
+        if on_progress:
+            on_progress(index, len(files), path.name)
+        advice = recommend_file(path, max_cluster)
+        ranked.append((advice, path))
+    ranked.sort(key=lambda item: (item[0].rank, item[0].fits, item[0].largest, item[1].name.lower()))
+    plan: list[RenameItem] = []
+    lines: list[str] = []
+    number = start
+    for advice, source in ranked:
+        dest = folder / f"{number:0{pad_width}d}{source.suffix.lower()}"
+        plan.append(RenameItem(source=source, dest=dest))
+        lines.append(f"{source.name}  →  {dest.name}   {advice.summary}")
+        number += 1
+    return plan, lines
+
+
 def build_plan(folder: Path, start: int = 1, pad_width: int = 2, images_only: bool = True) -> list[RenameItem]:
     start = max(1, int(start))
     pad_width = max(1, int(pad_width))

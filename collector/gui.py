@@ -232,6 +232,9 @@ class CollectorApp(ctk.CTk):
         ctk.CTkButton(buttons, text="Перенумеровать", width=150, height=40, fg_color="#3a3f4b", command=self._open_renamer).pack(
             side="left"
         )
+        ctk.CTkButton(buttons, text="Отбор", width=110, height=40, fg_color="#3a3f4b", command=self._open_reviewer).pack(
+            side="left", padx=8
+        )
 
     def _section(self, parent, title: str) -> None:
         ctk.CTkLabel(parent, text=title, font=ctk.CTkFont(size=15, weight="bold"), text_color=ACCENT).pack(
@@ -277,6 +280,10 @@ class CollectorApp(ctk.CTk):
     def _open_renamer(self) -> None:
         self._persist()
         subprocess.Popen([sys.executable, "-m", "renamer"], cwd=str(Path(__file__).resolve().parents[1]))
+
+    def _open_reviewer(self) -> None:
+        self._persist()
+        subprocess.Popen([sys.executable, "-m", "reviewer"], cwd=str(Path(__file__).resolve().parents[1]))
 
     def _options_from_ui(self, count_override: int | None = None) -> CollectOptions:
         selected = [cat for cat in CATEGORIES if self.cat_vars[cat.id].get()]

@@ -18,6 +18,7 @@ CATEGORIES: tuple[Category, ...] = (
         pexels_query="landscape mountains forest nature",
         unsplash_query="landscape mountains nature",
         pixabay_query="landscape mountains nature",
+        pixabay_queries=("mountain lake", "forest valley", "canyon scenery", "alpine landscape"),
     ),
     Category(
         id="places",
@@ -34,6 +35,7 @@ CATEGORIES: tuple[Category, ...] = (
         pexels_query="city landmark travel architecture",
         unsplash_query="city travel landmark architecture",
         pixabay_query="city landmark travel",
+        pixabay_queries=("old town street", "historic architecture", "city skyline", "travel landmark"),
     ),
     Category(
         id="animals",
@@ -49,6 +51,7 @@ CATEGORIES: tuple[Category, ...] = (
         pexels_query="wildlife animals mammal",
         unsplash_query="wildlife animal",
         pixabay_query="wildlife animal",
+        pixabay_queries=("wild mammal", "safari animal", "animal nature", "zoo animal"),
     ),
     Category(
         id="birds",
@@ -63,6 +66,7 @@ CATEGORIES: tuple[Category, ...] = (
         pexels_query="bird wildlife",
         unsplash_query="bird wildlife",
         pixabay_query="bird wildlife",
+        pixabay_queries=("bird flying", "songbird", "eagle bird", "parrot bird"),
     ),
     Category(
         id="food",
@@ -78,6 +82,7 @@ CATEGORIES: tuple[Category, ...] = (
         pexels_query="food meal cuisine",
         unsplash_query="food meal cuisine",
         pixabay_query="food meal cuisine",
+        pixabay_queries=("gourmet dish", "dessert food", "fruit food", "breakfast plate"),
     ),
     Category(
         id="sea",
@@ -93,6 +98,7 @@ CATEGORIES: tuple[Category, ...] = (
         pexels_query="ocean sea beach seascape",
         unsplash_query="ocean sea beach",
         pixabay_query="ocean sea beach",
+        pixabay_queries=("tropical beach", "sea coast", "ocean waves", "island sea"),
     ),
     Category(
         id="flowers",
@@ -108,6 +114,7 @@ CATEGORIES: tuple[Category, ...] = (
         pexels_query="flowers garden blossom",
         unsplash_query="flowers garden",
         pixabay_query="flowers garden",
+        pixabay_queries=("flower macro", "spring blossom", "rose flower", "garden plants"),
     ),
     Category(
         id="sunsets",
@@ -123,6 +130,7 @@ CATEGORIES: tuple[Category, ...] = (
         pexels_query="sunset sunrise sky",
         unsplash_query="sunset sunrise sky",
         pixabay_query="sunset sunrise",
+        pixabay_queries=("sunset sky", "sunrise clouds", "golden hour", "dramatic sky"),
     ),
     Category(
         id="winter",
@@ -138,6 +146,7 @@ CATEGORIES: tuple[Category, ...] = (
         pexels_query="winter snow landscape",
         unsplash_query="winter snow landscape",
         pixabay_query="winter snow",
+        pixabay_queries=("snow mountains", "winter forest", "frozen lake", "northern lights"),
     ),
     Category(
         id="space",
@@ -153,6 +162,7 @@ CATEGORIES: tuple[Category, ...] = (
         pexels_query="astronomy galaxy night sky",
         unsplash_query="astronomy galaxy milky way",
         pixabay_query="astronomy galaxy night",
+        pixabay_queries=("milky way", "night sky stars", "moon night", "nebula space"),
     ),
 )
 
